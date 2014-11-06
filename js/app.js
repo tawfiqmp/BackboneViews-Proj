@@ -16,7 +16,7 @@
 
             var client = new UberClient();
             // start app?
-        })
+        });
 
     }
     
