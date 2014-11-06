@@ -6,9 +6,7 @@
         className: "uberVenue",
         initialize: function(opts) {
             // 1. Sometimes it will be instantiated without options, so to guard against errors:
-            this.options = _.extend(
-                {},
-                {
+            this.options = _.extend({}, {
                     $container: $('body')
                 },
                 opts
@@ -24,13 +22,13 @@
             this.render();
         },
         template: "<h1>{name}</h1><hr><ul><li>{location.lat}</li><li>{location.lng}</li></ul>",
-        render: function(){
+        render: function() {
             this.el.innerHTML = _.template(this.template, this.options);
         }
     })
 
     function UberClient(options) {
-    	"use strict";
+        "use strict";
         this.options = _.extend({}, options, {
             server_token: "U67tkPnc_tsni5pAv54vCDjKnXI6geek9fenFndn",
             api_key: "AIzaSyB1najZ5yX92F823qZLgpr-4G2phsIQgrc",
@@ -40,48 +38,71 @@
     }
 
     UberClient.prototype.createInputObject = function() {
-    "use strict";
-    var input = {};
-    $(':input').each(function() {
-        input[this.name] = this.value;
-    });
+        "use strict";
+        var input = {};
+        $(':input').each(function() {
+            input[this.name] = this.value;
+        });
 
-    console.dir(input);
-    return input;
-};
-
-    UberClient.prototype.geoStartingConversion = function() {
-    	"use strict";
-
-    	var input = this.createInputObject();
-
-    	var url = [
-    		"https://maps.googleapis.com/maps/api/geocode/json",
-    		"?address=1121+Delano+St,+Houston,+TX",
-    		//input.startingAddress,
-    		"&key=",
-    		this.options.api_key
-    	];
-    	return $.get(url.join('')).then(function(data){
-    		console.log(data.results[0].geometry.location);
-    		return data.results[0].geometry.location;
-    	})
+        console.dir(input);
+        return input;
     };
 
-    UberClient.prototype.queryAPI = function(coordinates) {
-    	"use strict";
+    UberClient.prototype.geoStartingConversion = function() {
+        "use strict";
+
+        var input = this.createInputObject();
+
         var url = [
-            "/uber/v1/products",
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            "?address=1121+Delano+St,+Houston,+TX",
+            //input.startingAddress,
+            "&key=",
+            this.options.api_key
+        ];
+        return $.get(url.join('')).then(function(data) {
+            console.log(data.results[0].geometry.location);
+            return data.results[0].geometry.location;
+        })
+    };
+
+    UberClient.prototype.geoEndingConversion = function() {
+        "use strict";
+
+        var input = this.createInputObject();
+
+        var url = [
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            "?address=3711+Travis+St,+Houston,+TX",
+            //input.endingAddress,
+            "&key=",
+            this.options.api_key
+        ];
+        return $.get(url.join('')).then(function(data) {
+            console.log(data.results[0].geometry.location);
+            return data.results[0].geometry.location;
+        })
+    };
+
+
+    UberClient.prototype.queryAPI = function(startingCoordinates, endingCoordinates) {
+        "use strict";
+        var url = [
+            "/uber/v1/estimates/price",
             "?server_token=",
             this.options.server_token,
-            "&latitude=",
-            coordinates.lat,
-            '&longitude=',
-            coordinates.lng
+            "&start_latitude=",
+            startingCoordinates.lat,
+            "&start_longitude=",
+            startingCoordinates.lng,
+            "&end_latitude=",
+            endingCoordinates.lat,
+            "&end_longitude=",
+            endingCoordinates.lng
         ];
 
-        return $.get(url.join('')).then(function(data){
-        	console.log(data);
+        return $.get(url.join('')).then(function(data) {
+            console.log(data);
             return data;
         });
     };
@@ -96,23 +117,22 @@
     //     return promise;
     // };
 
-    UberClient.prototype.makeUberRequest = function(coordinates) {
-    	"use strict";
+    UberClient.prototype.makeUberRequest = function(startingCoordinates, endingCoordinates) {
+        "use strict";
         $.when(
-        	this.geoStartingConversion(),
-        	this.geoEndingConversion(),
-            this.queryAPI(coordinates)
-        ).then(function(){
-            if(
-                !arguments[0] ||
+            //this.geoStartingConversion(),
+            //this.geoEndingConversion(),
+            this.queryAPI(startingCoordinates, endingCoordinates)
+        ).then(function() {
+            if (!arguments[0] ||
                 !arguments[0].response ||
                 !arguments[0].response.venues ||
                 !(arguments[0].response.venues instanceof Array)
-            ){
+            ) {
                 throw new Error("array of venues not piped from queryAPI");
             }
 
-            arguments[0].response.venues.forEach(function(data){
+            arguments[0].response.venues.forEach(function(data) {
                 new uberView(data);
             })
 
@@ -120,17 +140,14 @@
     };
 
     UberClient.prototype.init = function() {
-    	"use strict";
+        "use strict";
         var self = this;
-        this.geoStartingConversion().then(function(startingCoordinates){
+        $.when(
+            this.geoStartingConversion(),
+            this.geoEndingConversion()
+        ).then(function(startingCoordinates, endingCoordinates) {
+            self.makeUberRequest(startingCoordinates, endingCoordinates);
 
-            self.makeUberRequest(startingCoordinates);
-
-        })
-
-        this.geoEndingConversion().then(function(endingCoordinates){
-
-        	self.makeUberRequest(endingCoordinates)
         })
     };
 
