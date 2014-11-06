@@ -30,6 +30,7 @@
     })
 
     function UberClient(options) {
+    	"use strict";
         this.options = _.extend({}, options, {
             server_token: "U67tkPnc_tsni5pAv54vCDjKnXI6geek9fenFndn",
             api_key: "AIzaSyB1najZ5yX92F823qZLgpr-4G2phsIQgrc",
@@ -38,47 +39,68 @@
         this.init();
     }
 
-    UberClient.prototype.geoConversion = function() {
+    UberClient.prototype.createInputObject = function() {
+    "use strict";
+    var input = {};
+    $(':input').each(function() {
+        input[this.name] = this.value;
+    });
+
+    console.dir(input);
+    return input;
+};
+
+    UberClient.prototype.geoStartingConversion = function() {
+    	"use strict";
+
+    	var input = this.createInputObject();
+
     	var url = [
     		"https://maps.googleapis.com/maps/api/geocode/json",
-    		"?address=1600+Amphitheatre+Parkway,+Mountain+View,+CA&key=",
+    		"?address=1121+Delano+St,+Houston,+TX",
+    		//input.startingAddress,
+    		"&key=",
     		this.options.api_key
     	];
     	return $.get(url.join('')).then(function(data){
-    		console.log(data);
-    		return data;
+    		console.log(data.results[0].geometry.location);
+    		return data.results[0].geometry.location;
     	})
     };
 
     UberClient.prototype.queryAPI = function(coordinates) {
+    	"use strict";
         var url = [
             "/uber/v1/products",
             "?server_token=",
             this.options.server_token,
             "&latitude=",
-            coordinates.coords.latitude,
+            coordinates.lat,
             '&longitude=',
-            coordinates.coords.longitude
+            coordinates.lng
         ];
 
         return $.get(url.join('')).then(function(data){
         	console.log(data);
-            return arguments;
+            return data;
         });
     };
 
 
-    UberClient.prototype.getGeo = function() {
-        var promise = $.Deferred();
-        navigator.geolocation.getCurrentPosition(function(){
-            promise.resolve(arguments[0]);
-        });
-        return promise;
-    };
+    // UberClient.prototype.getGeo = function() {
+    // 	"use strict";
+    //     var promise = $.Deferred();
+    //     navigator.geolocation.getCurrentPosition(function(){
+    //         promise.resolve(arguments[0]);
+    //     });
+    //     return promise;
+    // };
 
     UberClient.prototype.makeUberRequest = function(coordinates) {
+    	"use strict";
         $.when(
-        	this.geoConversion(),
+        	this.geoStartingConversion(),
+        	this.geoEndingConversion(),
             this.queryAPI(coordinates)
         ).then(function(){
             if(
@@ -91,18 +113,24 @@
             }
 
             arguments[0].response.venues.forEach(function(data){
-                new fsVenueView(data);
+                new uberView(data);
             })
 
         })
     };
 
     UberClient.prototype.init = function() {
+    	"use strict";
         var self = this;
-        this.getGeo().then(function(coordinates){
+        this.geoStartingConversion().then(function(startingCoordinates){
 
-            self.makeUberRequest(coordinates);
+            self.makeUberRequest(startingCoordinates);
 
+        })
+
+        this.geoEndingConversion().then(function(endingCoordinates){
+
+        	self.makeUberRequest(endingCoordinates)
         })
     };
 
